@@ -1,4 +1,8 @@
-use core
+use crate::memory::address::{
+    PhysicalPageNumber, PhysicalAddress,
+};
+use bit_field::*;
+use bitflags::*;
 
 /// Sv39 结构的页表项
 #[derive(Copy, Clone, Default)]

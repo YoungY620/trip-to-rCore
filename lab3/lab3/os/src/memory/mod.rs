@@ -11,12 +11,14 @@ pub mod config;
 pub mod frame;
 pub mod heap;
 pub mod range;
+pub mod mapping;
 
 /// 一个缩写，模块中一些函数会使用
 pub type MemoryResult<T> = Result<T, &'static str>;
 
 pub use {
     address::*,
+    mapping::*,
     config::*,
     frame::FRAME_ALLOCATOR,
     range::Range,

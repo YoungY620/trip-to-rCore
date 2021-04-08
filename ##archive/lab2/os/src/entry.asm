@@ -10,23 +10,27 @@
     .globl _start
 # 目前 _start 的功能：将预留的栈空间写入 $sp，然后跳转至 rust_main
 _start:
-    # 通过线性映射关系计算 boot_page_table 的物理页号
-    lui t0, %hi(boot_page_table)
-    li t1, 0xffffffff00000000
-    sub t0, t0, t1
-    srli t0, t0, 12
+    # 计算 boot_page_table 的物理页号, 即计算stap中存的页表基址
+    # 虚拟地址加上这个值, 变为一级页表中的页表项的物理地址
+    # `%hi(sym)`表示 sym 的高 20 位
+    # `lui`     一个转移指令, 和 %hi 一起使用, 表示 转移高 20 位到 t0
+    # `t0`:     temporary register 0
+    lui t0, %hi(boot_page_table)    
+    li t1, 0xffffffff00000000   # li 加载立即数
+    sub t0, t0, t1              # sub t0=t0-t1
+    srli t0, t0, 12             # 逻辑右移 12 位
     # 8 << 60 是 satp 中使用 Sv39 模式的记号
+    # (`<<` 应该是左移, 因为 satp 左侧第一位是标识sv39模式的)
     li t1, (8 << 60)
-    or t0, t0, t1
+    or t0, t0, t1               # '与'位运算
     # 写入 satp 并更新 TLB
-    csrw satp, t0
+    csrw satp, t0               # 写 CRS 寄存器
     sfence.vma
 
-    # 加载栈的虚拟地址
+    # 加载栈地址
     lui sp, %hi(boot_stack_top)
     addi sp, sp, %lo(boot_stack_top)
     # 跳转至 rust_main
-    # 这里同时伴随 hart 和 dtb_pa 两个指针的传入（是 OpenSBI 帮我们完成的）
     lui t0, %hi(rust_main)
     addi t0, t0, %lo(rust_main)
     jr t0
@@ -45,17 +49,18 @@ boot_stack_top:
     # 初始内核映射所用的页表
     .section .data
     .align 12
-    .global boot_page_table
 boot_page_table:
-    # .8byte表示长度为8个字节的整数
-    .8byte 0
-    .8byte 0
+    # .quad 表示一个八字节
+    # 这里表示, 这一行就占了一个八字节, 用 0 填充
+    # 这和高级语言的思维方式不一样
+    .quad 0
+    .quad 0
     # 第 2 项：0x8000_0000 -> 0x8000_0000，0xcf 表示 VRWXAD 均为 1
-    .8byte (0x80000 << 10) | 0xcf
-    .zero 505 * 8
-    # 第 508 项（外设用）：0xffff_ffff_0000_0000 -> 0x0000_0000，0xcf 表示 VRWXAD 均为 1
-    .8byte (0x00000 << 10) | 0xcf
-    .8byte 0
+    # 回忆: 10 位之前为地址
+    # 左移 10 位, 因为一个页表项的低 10 位为状态位, 详见readme
+    .quad (0x80000 << 10) | 0xcf
+    # 用 0 占位 507 个八字节, 所以下一行就是第 510 个八字节了
+    .zero 507 * 8
     # 第 510 项：0xffff_ffff_8000_0000 -> 0x8000_0000，0xcf 表示 VRWXAD 均为 1
-    .8byte (0x80000 << 10) | 0xcf
-    .8byte 0
+    .quad (0x80000 << 10) | 0xcf
+    .quad 0

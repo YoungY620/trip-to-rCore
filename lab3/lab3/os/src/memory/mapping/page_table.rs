@@ -1,3 +1,10 @@
+use crate::memory::{
+    address::PhysicalPageNumber,
+    frame::FrameTracker,
+};
+use super::page_table_entry::{PageTableEntry};
+use crate::memory::config::*;
+
 /// 存有 512 个页表项的页表
 ///
 /// 注意我们不会使用常规的 Rust 语法来创建 `PageTable`。相反，我们会分配一个物理页，
@@ -12,6 +19,12 @@ impl PageTable {
     /// 将页表清零
     pub fn zero_init(&mut self) {
         self.entries = [Default::default(); PAGE_SIZE / 8];
+    }
+}
+// 因为 PageTableEntry 和具体的 PageTable 之间没有生命周期关联，所以返回 'static 引用方便写代码
+impl PageTableEntry {
+    pub fn get_next_table(&self) -> &'static mut PageTable {
+        self.address().deref_kernel()
     }
 }
 
@@ -33,5 +46,20 @@ impl PageTableTracker {
     /// 获取物理页号
     pub fn page_number(&self) -> PhysicalPageNumber {
         self.0.page_number()
+    }
+}
+// PageTableEntry 和 PageTableTracker 都可以 deref 到对应的 PageTable
+// （使用线性映射来访问相应的物理地址）
+
+impl core::ops::Deref for PageTableTracker {
+    type Target = PageTable;
+    fn deref(&self) -> &Self::Target {
+        self.0.address().deref_kernel()
+    }
+}
+
+impl core::ops::DerefMut for PageTableTracker {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.address().deref_kernel()
     }
 }

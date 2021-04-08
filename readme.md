@@ -1,6 +1,10 @@
 # :cake:操作系统 rCore 之旅
 
-## 对 ucore-Tutorial 的补充
+## About
+
+rCore 及相关实验、复现、笔记，自用+分享+纪念
+
+## 对 ucore-Tutorial README 的补充
 
 [仓库原链接](https://github.com/DeathWish5/ucore-Tutorial)
 
