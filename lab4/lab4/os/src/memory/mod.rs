@@ -20,8 +20,8 @@ pub use {
     address::*,
     mapping::*,
     config::*,
-    frame::FRAME_ALLOCATOR,
-    range::Range,
+    frame::*,
+    range::*,
 };
 
 /// 初始化内存相关的子模块

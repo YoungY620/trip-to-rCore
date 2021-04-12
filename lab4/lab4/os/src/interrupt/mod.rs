@@ -7,6 +7,8 @@ mod handler;
 mod context;
 mod timer;
 
+pub use context::*;
+
 /// 初始化中断相关的子模块
 /// 
 /// - [`handler::init`]

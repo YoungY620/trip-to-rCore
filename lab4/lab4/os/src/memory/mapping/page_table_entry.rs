@@ -52,6 +52,16 @@ impl PageTableEntry {
     pub fn is_empty(&self) -> bool {
         self.0 == 0
     }
+    /// 是否指向下一级（RWX 全为0）
+    pub fn has_next_level(&self) -> bool {
+        let flags = self.flags();
+        !(flags.contains(Flags::READABLE)
+            || flags.contains(Flags::WRITABLE)
+            || flags.contains(Flags::EXECUTABLE))
+    }
+    pub fn clear(&mut self){
+        self.0 = 0;
+    }
 }
 
 impl core::fmt::Debug for PageTableEntry {
@@ -87,3 +97,24 @@ bitflags! {
         const DIRTY =       1 << 7;
     }
 }
+macro_rules! implement_flags {
+    ($field: ident, $name: ident, $quote: literal) => {
+        impl Flags {
+            #[doc = "返回 `Flags::"]
+            #[doc = $quote]
+            #[doc = "` 或 `Flags::empty()`"]
+            pub fn $name(value: bool) -> Flags {
+                if value {
+                    Flags::$field
+                } else {
+                    Flags::empty()
+                }
+            }
+        }
+    };
+}
+
+implement_flags! {USER, user, "USER"}
+implement_flags! {READABLE, readable, "READABLE"}
+implement_flags! {WRITABLE, writable, "WRITABLE"}
+implement_flags! {EXECUTABLE, executable, "EXECUTABLE"}
