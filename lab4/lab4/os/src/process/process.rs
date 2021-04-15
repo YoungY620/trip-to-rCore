@@ -1,8 +1,7 @@
 //! 进程 [`Process`]
 
 use super::*;
-use crate::fs::*;
-use xmas_elf::ElfFile;
+use rcore_fs::vfs::INode;
 
 /// 进程的信息
 pub struct Process {
@@ -27,18 +26,7 @@ impl Process {
             is_user: false,
             inner: Mutex::new(ProcessInner {
                 memory_set: MemorySet::new_kernel()?,
-                descriptors: vec![STDIN.clone(), STDOUT.clone()],
-            }),
-        }))
-    }
-
-    /// 创建进程，从文件中读取代码
-    pub fn from_elf(file: &ElfFile, is_user: bool) -> MemoryResult<Arc<Self>> {
-        Ok(Arc::new(Self {
-            is_user,
-            inner: Mutex::new(ProcessInner {
-                memory_set: MemorySet::from_elf(file, is_user)?,
-                descriptors: vec![STDIN.clone(), STDOUT.clone()],
+                descriptors: vec![],
             }),
         }))
     }

@@ -41,10 +41,7 @@
 
 #[macro_use]
 mod console;
-mod drivers;
-mod fs;
 mod interrupt;
-mod kernel;
 mod memory;
 mod panic;
 mod process;
@@ -52,12 +49,7 @@ mod sbi;
 extern crate alloc;
 
 use alloc::sync::Arc;
-use fs::{INodeExt, ROOT_INODE};
-use memory::PhysicalAddress;
 use process::*;
-use xmas_elf::ElfFile;
-use algorithm::*;
-
 use process::Process;
 
 // 汇编编写的程序入口，具体见该文件
@@ -67,22 +59,9 @@ global_asm!(include_str!("entry.asm"));
 ///
 /// 在 `_start` 为我们进行了一系列准备之后，这是第一个被调用的 Rust 函数
 #[no_mangle]
-pub extern "C" fn rust_main(_hart_id: usize, dtb_pa: PhysicalAddress) -> ! {
-    // 初始化各种模块
-    interrupt::init();
-    memory::init();
-
-    // let remap = memory::mapping::MemorySet::new_kernel().unwrap();
-    // remap.activate();
-
-    // println!("kernel remapped");
-
-    // panic!()
-
+pub extern "C" fn rust_main() -> ! {
     memory::init();
     interrupt::init();
-    drivers::init(dtb_pa);
-    fs::init();
 
     {
         let mut processor = PROCESSOR.lock();
@@ -108,8 +87,8 @@ pub extern "C" fn rust_main(_hart_id: usize, dtb_pa: PhysicalAddress) -> ! {
     unreachable!()
 }
 
-fn sample_process(id: usize) {
-    println!("hello from kernel thread {}", id);
+fn sample_process(message: usize) {
+    println!("hello from kernel thread {}", message);
 }
 
 /// 创建一个内核进程
@@ -130,20 +109,6 @@ pub fn create_kernel_thread(
         .set_ra(kernel_thread_exit as usize);
 
     thread
-}
-
-/// 创建一个用户进程，从指定的文件名读取 ELF
-pub fn create_user_process(name: &str) -> Arc<Thread> {
-    // 从文件系统中找到程序
-    let app = ROOT_INODE.find(name).unwrap();
-    // 读取数据
-    let data = app.readall().unwrap();
-    // 解析 ELF 文件
-    let elf = ElfFile::new(data.as_slice()).unwrap();
-    // 利用 ELF 文件创建线程，映射空间并加载数据
-    let process = Process::from_elf(&elf, true).unwrap();
-    // 再从 ELF 中读出程序入口地址
-    Thread::new(process, elf.header.pt2.entry_point() as usize, None).unwrap()
 }
 
 /// 内核线程需要调用这个函数来退出
