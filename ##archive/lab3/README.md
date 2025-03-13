@@ -34,6 +34,66 @@
   - 准备: 修改 [memory/config.rs](lab3/os/src/memory/config.rs) 支持虚拟映射
   - 之前, `stap` 的 `mode` 字段是 `bare` (直访物理地址) 现在改为 `sv39` 模式, 这样 CPU 寻址方式变化, 会寻找映射表来访问
 
+可能有疑问：内核程序如何左脚踩右脚自己设置自己使用自己实现的页表呢？实际上只需要向cpu通过satp寄存器说明页表的地址以及寻址模式，然后cpu就会顺着根页表通过虚拟地址访存的。
+
+为了实现内核程序从直接使用物理地址转变为使用虚拟地址，需要进行以下几个关键步骤：
+
+1. **修改链接脚本**：在 `linker.ld` 中，确保内核的各个段（如 `.text`、`.rodata`、`.data`、`.bss`）都对齐到 4KB 的边界。这是因为虚拟内存管理通常以页为单位进行管理，而页的大小通常是 4KB。
+
+   ```ld
+   /* 在 SECTIONS 中对齐各个段 */
+   . = ALIGN(4K);
+   text_start = .;
+   .text : {
+       *(.text.entry)
+       *(.text .text.*)
+   }
+   . = ALIGN(4K);
+   rodata_start = .;
+   .rodata : {
+       *(.rodata .rodata.*)
+   }
+   . = ALIGN(4K);
+   data_start = .;
+   .data : {
+       *(.data .data.*)
+   }
+   . = ALIGN(4K);
+   bss_start = .;
+   .bss : {
+       *(.sbss .bss .bss.*)
+   }
+   ```
+
+2. **修改内存配置**：在 `config.rs` 中，定义内核的虚拟地址映射偏移量，并使用 `lazy_static!` 宏来定义内核代码结束的虚拟地址。
+
+   ```rust
+   /// 内核使用线性映射的偏移量
+   pub const KERNEL_MAP_OFFSET: usize = 0xffff_ffff_0000_0000;
+
+   lazy_static! {
+       /// 内核代码结束的地址，即可以用来分配的内存起始地址
+       pub static ref KERNEL_END_ADDRESS: VirtualAddress = VirtualAddress(kernel_end as usize);
+   }
+   ```
+
+3. **设置页表模式**：在内核启动时，设置 CPU 的页表模式为 `sv39`，这需要在汇编代码中配置 `satp` 寄存器。`satp` 寄存器的 `MODE` 字段设置为 `8` 表示使用 `sv39` 模式。
+
+   ```asm
+   # 设置 satp 寄存器以启用 sv39 模式
+   li t1, (8 << 60)
+   or t0, t0, t1
+   csrw satp, t0
+   sfence.vma
+   ```
+
+4. **实现页表和映射**：在内核中实现页表和映射的逻辑，包括页表项 `PageTableEntry` 和页表 `PageTable` 的封装，以及映射 `Mapping` 的实现。这些结构和方法负责将虚拟地址映射到物理地址。
+
+5. **内核重映射**：在内核初始化过程中，使用 `MappingSet` 类来自动化内核的重定向。这涉及到将内核的虚拟地址空间映射到物理地址空间。
+
+通过这些步骤，内核程序可以从直接使用物理地址转变为使用虚拟地址，从而利用虚拟内存管理的优势，如内存保护和地址空间隔离。
+
+
 ## 实现页表和映射
 
 - 面向对象的封装:
