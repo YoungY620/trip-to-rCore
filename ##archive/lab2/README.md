@@ -19,7 +19,20 @@
     - [线段树](https://www.cnblogs.com/AC-King/p/7789013.html)
 - 对于本实验分配内存的理解:
   - 整体思路: 如 C 中的`malloc/free` , 这里实现两个函数: `alloc/dealloc`
-  - 首先是利用 buddy_system 为操作系统运行提供内存管理, 接下来是物理页的管理
+  - 首先是利用 buddy_system 为操作系统运行提供内存管理
+  
+  > `#[global_allocator]` 是一个特殊的标记，表示替换该程序的全局堆内存分配器。在嵌入式系统开发中，经常需要通过这种方式实现并使用 一个自定义的 堆分配器。 因此，对于这个OS本身这个程序，堆空间是由这样一个简陋的 buddy_system 维护的。[link](lab2/os/src/memory/heap.rs#L19)
+
+  ```rust
+  /// 堆，动态内存分配器
+  ///
+  /// ### `#[global_allocator]`
+  /// [`LockedHeap`] 实现了 [`alloc::alloc::GlobalAlloc`] trait，
+  /// 可以为全局需要用到堆的地方分配空间。例如 `Box` `Arc` 等
+  #[global_allocator]
+  static HEAP: LockedHeap = LockedHeap::empty();
+  ```
+  
   - 自底向上分析, 被分配的一段连续内存, 再rust中使用数组来表示, 由于数组的定义便是一段连续的内存. 这个数组用 **静态生命周期泛型** `'static` 修饰, 在程序的整个生命周期均有效: [见 address.rs](lab2/os/src/memory/address.rs)
 
     ```rust
